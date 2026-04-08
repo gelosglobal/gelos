@@ -12,6 +12,7 @@
     "dev:auth": "tsx watch server/index.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "start": "tsx server/index.ts",
     "start:auth": "tsx server/index.ts"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
     "dotenv": "^17.4.1",
     "express": "^4.22.1",
     "mongodb": "^7.1.1",
+    "tsx": "^4.21.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
@@ -30,10 +32,8 @@
     "@types/node": "^25.5.2",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
-    "@vercel/node": "^5.7.1",
     "@vitejs/plugin-react": "^5.0.2",
     "concurrently": "^9.2.1",
-    "tsx": "^4.21.0",
     "typescript": "^5.9.2",
     "vite": "^7.1.3"
   },

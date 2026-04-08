@@ -15,14 +15,14 @@ function mongoUri(): string {
 
 const dbName = process.env.MONGODB_DB_NAME || "gelos";
 
-/** Single client for adapter + connection pooling (important on Vercel serverless). */
+/** Single client for adapter + connection pooling. */
 export const mongoClient = new MongoClient(mongoUri());
 
 const txEnv = process.env.MONGODB_TRANSACTIONS;
 const transaction =
   txEnv === "true" ? true : txEnv === "false" ? false : undefined;
 
-/** Public origin where the app is served (no trailing slash). Set BETTER_AUTH_URL on Vercel to your live URL, e.g. https://my-app.vercel.app */
+/** Public origin where the app is served (no trailing slash). In production set to your real URL, e.g. https://staff.gelosglobal.com */
 function resolveBaseURL(): string {
   const u = process.env.BETTER_AUTH_URL?.trim().replace(/\/$/, "");
   if (u) return u;
