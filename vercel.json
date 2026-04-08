@@ -3,6 +3,12 @@
   "installCommand": "pnpm install",
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/auth/[...slug].ts": {
+      "maxDuration": 30,
+      "includeFiles": "server/**"
+    }
+  },
   "rewrites": [
     {
       "source": "/((?!api/).*)",

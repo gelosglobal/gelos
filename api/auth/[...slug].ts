@@ -1,6 +1,5 @@
 /**
- * Vercel turns any file under /api into a serverless function automatically — no extra UI config.
- * This file only runs on Vercel; local dev uses Express in server/index.ts.
+ * Vercel: files under /api become Node serverless routes. Local dev uses Express (server/index.ts).
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { toNodeHandler } from "better-auth/node";
@@ -10,11 +9,12 @@ const AUTH_PREFIX = "/api/auth";
 const handler = toNodeHandler(auth);
 
 function normalizeAuthUrl(req: VercelRequest) {
-  const raw = req.url ?? "/";
+  let raw = req.url ?? "/";
   const q = raw.includes("?") ? raw.slice(raw.indexOf("?")) : "";
-  const pathPart = raw.includes("?") ? raw.slice(0, raw.indexOf("?")) : raw;
+  let pathPart = raw.includes("?") ? raw.slice(0, raw.indexOf("?")) : raw;
 
   if (pathPart === AUTH_PREFIX || pathPart.startsWith(`${AUTH_PREFIX}/`)) {
+    syncOriginalUrl(req, raw);
     return;
   }
 
@@ -23,13 +23,38 @@ function normalizeAuthUrl(req: VercelRequest) {
     typeof slug === "string" ? slug : Array.isArray(slug) ? slug.join("/") : "";
 
   const sub = (fromSlug || pathPart).replace(/^\/+/, "");
-  if (!sub) return;
+  if (!sub) {
+    syncOriginalUrl(req, raw);
+    return;
+  }
 
-  req.url = `${AUTH_PREFIX}/${sub}${q}`;
+  raw = `${AUTH_PREFIX}/${sub}${q}`;
+  req.url = raw;
+  syncOriginalUrl(req, raw);
+}
+
+/** better-call uses originalUrl + url; Vercel often only sets url — keep them aligned. */
+function syncOriginalUrl(req: VercelRequest, full: string) {
+  const r = req as VercelRequest & { originalUrl?: string };
+  r.originalUrl = full;
 }
 
 export default async function vercelAuth(req: VercelRequest, res: VercelResponse) {
-  normalizeAuthUrl(req);
-  await mongoClient.connect();
-  await handler(req, res);
+  try {
+    normalizeAuthUrl(req);
+
+    if (!process.env.BETTER_AUTH_SECRET) {
+      console.error("[auth] BETTER_AUTH_SECRET is not set");
+      res.status(500).json({ error: "server_misconfigured" });
+      return;
+    }
+
+    await mongoClient.connect();
+    await handler(req, res);
+  } catch (err) {
+    console.error("[auth] handler error:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "auth_failed" });
+    }
+  }
 }
