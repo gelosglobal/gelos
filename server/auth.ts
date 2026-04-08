@@ -22,35 +22,27 @@ const txEnv = process.env.MONGODB_TRANSACTIONS;
 const transaction =
   txEnv === "true" ? true : txEnv === "false" ? false : undefined;
 
-/**
- * Public URL where the app is served (no trailing slash).
- * On Vercel, set BETTER_AUTH_URL or rely on VERCEL_URL.
- */
+/** Public origin where the app is served (no trailing slash). Set BETTER_AUTH_URL on Vercel to your live URL, e.g. https://my-app.vercel.app */
 function resolveBaseURL(): string {
-  const explicit = process.env.BETTER_AUTH_URL?.replace(/\/$/, "");
-  if (explicit) return explicit;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  const u = process.env.BETTER_AUTH_URL?.trim().replace(/\/$/, "");
+  if (u) return u;
   return "http://localhost:5173";
 }
 
-/** Origins allowed for CORS / cookie context (browser + serverless). */
+/** Origins for CORS / cookies: your site + optional extra domains from env. */
 function resolveTrustedOrigins(): string[] {
-  const fromEnv = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
+  const extra = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
     .split(",")
-    .map((s) => s.trim())
+    .map((s) => s.trim().replace(/\/$/, ""))
     .filter(Boolean);
 
-  const vercel: string[] = [];
-  if (process.env.VERCEL_URL) vercel.push(`https://${process.env.VERCEL_URL}`);
-  if (process.env.VERCEL_BRANCH_URL) vercel.push(process.env.VERCEL_BRANCH_URL.replace(/\/$/, ""));
-
-  const dev = ["http://localhost:5173", "http://127.0.0.1:5173"];
-
   const base = resolveBaseURL();
-  const merged = [...fromEnv, ...vercel, base];
-  if (process.env.NODE_ENV !== "production") {
-    merged.push(...dev);
-  }
+  const local = ["http://localhost:5173", "http://127.0.0.1:5173"];
+  const merged =
+    base.startsWith("http://localhost") || base.startsWith("http://127.0.0.1")
+      ? [base, ...extra, ...local]
+      : [base, ...extra];
+
   return [...new Set(merged)];
 }
 
