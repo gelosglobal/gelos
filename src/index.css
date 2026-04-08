@@ -15,3 +15,342 @@ body {
 #root {
   height: 100%;
 }
+
+/* Auth (SignIn + session check) — scoped utilities */
+.gelos-auth-screen {
+  --gelos-auth-primary: #1a3c5e;
+  --gelos-auth-accent: #e8a020;
+  --gelos-auth-muted: #64748b;
+  --gelos-auth-surface: #ffffff;
+  --gelos-auth-border: rgba(26, 60, 94, 0.12);
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 32px);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(232, 160, 32, 0.09), transparent 55%),
+    radial-gradient(900px 500px at -5% 100%, rgba(26, 60, 94, 0.35), transparent 50%),
+    linear-gradient(165deg, #0f172a 0%, #1a3c5e 48%, #0c1929 100%);
+  color: #0f172a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gelos-auth-screen *,
+  .gelos-auth-loading * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes gelos-auth-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gelos-auth-shimmer {
+  to {
+    background-position: 200% center;
+  }
+}
+
+@keyframes gelos-auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gelos-auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--gelos-auth-surface);
+  border-radius: 16px;
+  box-shadow:
+    0 4px 6px rgba(15, 23, 42, 0.04),
+    0 24px 48px rgba(15, 23, 42, 0.14),
+    0 0 0 1px var(--gelos-auth-border);
+  padding: clamp(28px, 5vw, 36px) clamp(24px, 4vw, 32px);
+  animation: gelos-auth-enter 0.45s ease-out both;
+}
+
+.gelos-auth-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.gelos-auth-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, var(--gelos-auth-primary), #0d2844);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+  box-shadow: 0 8px 20px rgba(26, 60, 94, 0.35);
+}
+
+.gelos-auth-title {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--gelos-auth-primary);
+  line-height: 1.2;
+}
+
+.gelos-auth-title span {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gelos-auth-accent);
+  margin-bottom: 4px;
+}
+
+.gelos-auth-lede {
+  margin: 6px 0 0;
+  font-size: 0.95rem;
+  color: var(--gelos-auth-muted);
+  line-height: 1.45;
+}
+
+.gelos-auth-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 22px;
+  border-radius: 12px;
+  background: rgba(26, 60, 94, 0.06);
+  border: 1px solid rgba(26, 60, 94, 0.08);
+}
+
+.gelos-auth-tab {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--gelos-auth-primary);
+  background: transparent;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.gelos-auth-tab:hover {
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.gelos-auth-tab:focus-visible {
+  outline: 2px solid var(--gelos-auth-accent);
+  outline-offset: 2px;
+}
+
+.gelos-auth-tab[aria-selected="true"] {
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  color: var(--gelos-auth-primary);
+}
+
+.gelos-auth-field {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.gelos-auth-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gelos-auth-muted);
+  margin-bottom: 7px;
+}
+
+.gelos-auth-input-wrap {
+  position: relative;
+}
+
+.gelos-auth-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #d8e0ea;
+  font: inherit;
+  font-size: 1rem;
+  color: #0f172a;
+  background: #fafbfc;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.gelos-auth-input:hover {
+  border-color: #c5d0dd;
+}
+
+.gelos-auth-input:focus {
+  outline: none;
+  border-color: var(--gelos-auth-primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(26, 60, 94, 0.15);
+}
+
+.gelos-auth-input[aria-invalid="true"] {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.gelos-auth-input--pw {
+  padding-right: 44px;
+}
+
+.gelos-auth-toggle-pw {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gelos-auth-muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.gelos-auth-toggle-pw:hover {
+  color: var(--gelos-auth-primary);
+  background: rgba(26, 60, 94, 0.06);
+}
+
+.gelos-auth-toggle-pw:focus-visible {
+  outline: 2px solid var(--gelos-auth-accent);
+  outline-offset: 1px;
+}
+
+.gelos-auth-error {
+  margin-bottom: 14px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.gelos-auth-submit {
+  width: 100%;
+  margin-top: 4px;
+  padding: 13px 16px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #234a72 0%, var(--gelos-auth-primary) 100%);
+  color: #fff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(26, 60, 94, 0.35);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    opacity 0.12s ease;
+}
+
+.gelos-auth-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(26, 60, 94, 0.4);
+}
+
+.gelos-auth-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.gelos-auth-submit:disabled {
+  cursor: wait;
+  opacity: 0.88;
+}
+
+.gelos-auth-submit:focus-visible {
+  outline: 2px solid var(--gelos-auth-accent);
+  outline-offset: 3px;
+}
+
+.gelos-auth-foot {
+  margin: 22px 0 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Session loading */
+.gelos-auth-loading {
+  --gelos-auth-primary: #1a3c5e;
+  --gelos-auth-accent: #e8a020;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background:
+    radial-gradient(800px 400px at 50% -20%, rgba(232, 160, 32, 0.06), transparent 50%),
+    linear-gradient(165deg, #0f172a 0%, #1a3c5e 50%, #0c1929 100%);
+}
+
+.gelos-auth-loading-inner {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.92);
+  animation: gelos-auth-enter 0.4s ease-out both;
+}
+
+.gelos-auth-loading-ring {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--gelos-auth-accent);
+  animation: gelos-auth-spin 0.7s linear infinite;
+}
+
+.gelos-auth-loading-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.gelos-auth-loading-sub {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+}

@@ -1,14 +1,19 @@
-import { useState } from "react";
-import { C } from "../gelos_os/constants";
+import { useId, useState } from "react";
 import { signIn, signUp } from "../lib/auth-client";
 
 export function SignIn() {
+  const baseId = useId();
+  const emailId = `${baseId}-email`;
+  const passwordId = `${baseId}-password`;
+  const nameId = `${baseId}-name`;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,191 +21,158 @@ export function SignIn() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await signUp.email({
+        const { error: err } = await signUp.email({
           email,
           password,
           name: name || email.split("@")[0] || "User",
         });
-        if (error) setError(error.message ?? "Sign up failed");
+        if (err) setError(err.message ?? "Sign up failed");
       } else {
-        const { error } = await signIn.email({ email, password });
-        if (error) setError(error.message ?? "Sign in failed");
+        const { error: err } = await signIn.email({ email, password });
+        if (err) setError(err.message ?? "Sign in failed");
       }
-    } catch (x: any) {
-      setError(x?.message ?? "Something went wrong");
+    } catch (x: unknown) {
+      setError(x instanceof Error ? x.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-        background: "linear-gradient(160deg, #f0f4f8 0%, #e8eef5 100%)",
-        fontFamily: "'Segoe UI',system-ui,sans-serif",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 400,
-          background: "#fff",
-          borderRadius: 14,
-          boxShadow: "0 8px 40px rgba(26,60,94,.12)",
-          padding: "32px 28px",
-          border: "1px solid #e4eaf1",
-        }}
-      >
-        <h1 style={{ margin: "0 0 6px", fontSize: "1.5rem", fontWeight: 800, color: C.primary }}>
-          Gelos OS
-        </h1>
-        <p style={{ margin: "0 0 24px", fontSize: ".95rem", color: "#64748b" }}>
-          {mode === "signin" ? "Sign in to continue" : "Create an account"}
-        </p>
+    <main className="gelos-auth-screen">
+      <div className="gelos-auth-card">
+        <header className="gelos-auth-brand">
+          <div className="gelos-auth-logo" aria-hidden>
+            G
+          </div>
+          <div>
+            <h1 className="gelos-auth-title">
+              <span>Gelos OS</span>
+              {mode === "signin" ? "Welcome back" : "Create your workspace"}
+            </h1>
+            <p className="gelos-auth-lede">
+              {mode === "signin"
+                ? "Sign in with your work email to open dashboards and tools."
+                : "Set up your account—same credentials work across DTC and Sales Force views."}
+            </p>
+          </div>
+        </header>
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <div role="tablist" aria-label="Authentication mode" className="gelos-auth-tabs">
           <button
             type="button"
-            onClick={() => { setMode("signin"); setError(null); }}
-            style={{
-              flex: 1,
-              padding: "10px 12px",
-              borderRadius: 8,
-              border: mode === "signin" ? `2px solid ${C.primary}` : "1px solid #dde3ea",
-              background: mode === "signin" ? "rgba(26,60,94,.08)" : "#fff",
-              fontWeight: 700,
-              cursor: "pointer",
-              color: C.primary,
+            role="tab"
+            id={`${baseId}-tab-signin`}
+            aria-selected={mode === "signin"}
+            aria-controls={`${baseId}-panel-auth`}
+            className="gelos-auth-tab"
+            onClick={() => {
+              setMode("signin");
+              setError(null);
             }}
           >
             Sign in
           </button>
           <button
             type="button"
-            onClick={() => { setMode("signup"); setError(null); }}
-            style={{
-              flex: 1,
-              padding: "10px 12px",
-              borderRadius: 8,
-              border: mode === "signup" ? `2px solid ${C.primary}` : "1px solid #dde3ea",
-              background: mode === "signup" ? "rgba(26,60,94,.08)" : "#fff",
-              fontWeight: 700,
-              cursor: "pointer",
-              color: C.primary,
+            role="tab"
+            id={`${baseId}-tab-signup`}
+            aria-selected={mode === "signup"}
+            aria-controls={`${baseId}-panel-auth`}
+            className="gelos-auth-tab"
+            onClick={() => {
+              setMode("signup");
+              setError(null);
             }}
           >
             Register
           </button>
         </div>
 
-        <form onSubmit={submit}>
+        <form
+          id={`${baseId}-panel-auth`}
+          role="tabpanel"
+          aria-labelledby={mode === "signin" ? `${baseId}-tab-signin` : `${baseId}-tab-signup`}
+          onSubmit={submit}
+        >
           {mode === "signup" && (
-            <label style={{ display: "block", marginBottom: 14 }}>
-              <span style={{ display: "block", fontSize: ".8rem", fontWeight: 700, color: "#64748b", marginBottom: 6 }}>
-                Name
-              </span>
+            <label className="gelos-auth-field" htmlFor={nameId}>
+              <span className="gelos-auth-label">Display name</span>
               <input
+                id={nameId}
+                className="gelos-auth-input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoComplete="name"
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  padding: "11px 12px",
-                  borderRadius: 8,
-                  border: "1px solid #dde3ea",
-                  fontSize: "1rem",
-                }}
+                placeholder="e.g. Ama Owusu"
               />
             </label>
           )}
-          <label style={{ display: "block", marginBottom: 14 }}>
-            <span style={{ display: "block", fontSize: ".8rem", fontWeight: 700, color: "#64748b", marginBottom: 6 }}>
-              Email
-            </span>
+          <label className="gelos-auth-field" htmlFor={emailId}>
+            <span className="gelos-auth-label">Work email</span>
             <input
+              id={emailId}
+              className="gelos-auth-input"
               type="email"
+              inputMode="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                padding: "11px 12px",
-                borderRadius: 8,
-                border: "1px solid #dde3ea",
-                fontSize: "1rem",
-              }}
+              autoCapitalize="none"
+              spellCheck={false}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${baseId}-err` : undefined}
+              placeholder="you@company.com"
             />
           </label>
-          <label style={{ display: "block", marginBottom: 20 }}>
-            <span style={{ display: "block", fontSize: ".8rem", fontWeight: 700, color: "#64748b", marginBottom: 6 }}>
-              Password
-            </span>
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                padding: "11px 12px",
-                borderRadius: 8,
-                border: "1px solid #dde3ea",
-                fontSize: "1rem",
-              }}
-            />
-          </label>
-
-          {error && (
-            <div
-              style={{
-                marginBottom: 14,
-                padding: "10px 12px",
-                borderRadius: 8,
-                background: "#fff5f5",
-                border: "1px solid #fecaca",
-                color: "#b91c1c",
-                fontSize: ".9rem",
-              }}
-            >
-              {error}
+          <label className="gelos-auth-field" htmlFor={passwordId}>
+            <span className="gelos-auth-label">Password</span>
+            <div className="gelos-auth-input-wrap">
+              <input
+                id={passwordId}
+                className="gelos-auth-input gelos-auth-input--pw"
+                type={showPassword ? "text" : "password"}
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? `${baseId}-err` : undefined}
+                placeholder={mode === "signup" ? "At least 8 characters" : "••••••••"}
+              />
+              <button
+                type="button"
+                className="gelos-auth-toggle-pw"
+                aria-pressed={showPassword}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                onClick={() => setShowPassword((v) => !v)}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
             </div>
-          )}
+          </label>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "12px 16px",
-              border: "none",
-              borderRadius: 8,
-              background: C.primary,
-              color: "#fff",
-              fontWeight: 800,
-              fontSize: "1rem",
-              cursor: loading ? "wait" : "pointer",
-              opacity: loading ? 0.85 : 1,
-            }}
-          >
-            {loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+          <div id={`${baseId}-err`} role="alert" aria-live="polite">
+            {error ? <div className="gelos-auth-error">{error}</div> : null}
+          </div>
+
+          <button type="submit" className="gelos-auth-submit" disabled={loading}>
+            {loading
+              ? mode === "signin"
+                ? "Signing you in…"
+                : "Creating your account…"
+              : mode === "signin"
+                ? "Sign in"
+                : "Create account"}
           </button>
         </form>
 
-        <p style={{ margin: "20px 0 0", fontSize: ".82rem", color: "#94a3b8", textAlign: "center" }}>
-          Sessions are stored securely (HTTP-only cookies) via Better Auth + MongoDB.
+        <p className="gelos-auth-foot">
+          Secure session via HTTP-only cookies. Built with Better Auth and MongoDB.
         </p>
       </div>
-    </div>
+    </main>
   );
 }

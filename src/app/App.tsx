@@ -7,19 +7,12 @@ export function App() {
 
   if (isPending) {
     return (
-      <div
-        style={{
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: "'Segoe UI',system-ui,sans-serif",
-          color: "#1a3c5e",
-          fontWeight: 700,
-          fontSize: "1.1rem",
-        }}
-      >
-        Loading…
+      <div className="gelos-auth-loading" role="status" aria-live="polite" aria-busy="true">
+        <div className="gelos-auth-loading-inner">
+          <div className="gelos-auth-loading-ring" aria-hidden />
+          <p className="gelos-auth-loading-title">Gelos OS</p>
+          <p className="gelos-auth-loading-sub">Checking your session…</p>
+        </div>
       </div>
     );
   }
