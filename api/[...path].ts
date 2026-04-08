@@ -1,6 +1,11 @@
 /**
- * Self-contained Better Auth handler for Vercel.
- * Do not import other project files here — the bundler only emits this file; local imports become broken ESM paths at runtime.
+ * Better Auth handler for Vercel (root catch-all under `/api/*`).
+ *
+ * Use `api/[...path].ts` (not `api/auth/[...path].ts`): on Vercel, a nested catch-all
+ * after a static `auth` segment only matched one path segment, so `/api/auth/sign-in/email`
+ * returned NOT_FOUND while `/api/auth/get-session` worked.
+ *
+ * Self-contained — do not import other project files (Vercel bundles this file alone).
  * Mirror changes in `server/auth-config.ts` (Express).
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
@@ -95,16 +100,24 @@ function getNodeHandler() {
   return nodeHandler;
 }
 
-function restAfterAuth(req: VercelRequest): string {
-  const p = req.query.path;
-  if (Array.isArray(p)) return p.join("/");
-  if (typeof p === "string") return p;
+/** Path after `/api/` from Vercel `[...path]` (multi-segment) or from `req.url`. */
+function pathAfterApi(req: VercelRequest): string {
+  const q = req.query.path;
+  if (Array.isArray(q) && q.length > 0) {
+    return q.map(String).join("/");
+  }
+  if (typeof q === "string" && q.length > 0) {
+    return q;
+  }
   const raw = req.url?.split("?")[0] ?? "";
-  const prefix = "/api/auth/";
-  if (raw.startsWith(prefix)) return raw.slice(prefix.length);
+  if (raw.startsWith("/api/")) {
+    return raw.slice("/api/".length);
+  }
   try {
     const pathname = new URL(req.url ?? "/", "http://local").pathname;
-    if (pathname.startsWith(prefix)) return pathname.slice(prefix.length);
+    if (pathname.startsWith("/api/")) {
+      return pathname.slice("/api/".length);
+    }
   } catch {
     /* ignore */
   }
@@ -122,12 +135,17 @@ function hasMongoUri(): boolean {
   );
 }
 
-export default async function authCatchAll(req: VercelRequest, res: VercelResponse) {
+export default async function apiCatchAll(req: VercelRequest, res: VercelResponse) {
   try {
     const raw = req.url ?? "/";
-    const q = raw.includes("?") ? raw.slice(raw.indexOf("?")) : "";
-    const rest = restAfterAuth(req);
-    const fullPath = `/api/auth/${rest}${q}`;
+    const qs = raw.includes("?") ? raw.slice(raw.indexOf("?")) : "";
+    const afterApi = pathAfterApi(req);
+    if (afterApi !== "auth" && !afterApi.startsWith("auth/")) {
+      res.status(404).send("Not found");
+      return;
+    }
+
+    const fullPath = `/api/${afterApi}${qs}`;
     req.url = fullPath;
     syncOriginalUrl(req, fullPath);
 

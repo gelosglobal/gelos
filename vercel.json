@@ -4,7 +4,7 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/auth/[...path].ts": {
+    "api/[...path].ts": {
       "maxDuration": 30
     }
   },
