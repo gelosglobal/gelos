@@ -4,9 +4,8 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/[...slug].ts": {
-      "maxDuration": 30,
-      "includeFiles": "server/**"
+    "api/auth/[...path].ts": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
