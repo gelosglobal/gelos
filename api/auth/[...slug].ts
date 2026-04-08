@@ -1,14 +1,12 @@
 /**
- * Vercel Serverless — Better Auth catch-all for /api/auth/*
- * Vercel often passes req.url without the /api/auth prefix; better-call then builds
- * the wrong Request URL and Better Auth returns 404. Normalize before handling.
+ * Vercel serverless — Better Auth at /api/auth/* (same origin as staff.gelosglobal.com).
+ * req.url is normalized because Vercel often omits the /api/auth prefix.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { toNodeHandler } from "better-auth/node";
 import { auth, mongoClient } from "../../server/auth";
 
 const AUTH_PREFIX = "/api/auth";
-
 const handler = toNodeHandler(auth);
 
 function normalizeAuthUrl(req: VercelRequest) {
@@ -24,7 +22,7 @@ function normalizeAuthUrl(req: VercelRequest) {
   const fromSlug =
     typeof slug === "string" ? slug : Array.isArray(slug) ? slug.join("/") : "";
 
-  let sub = (fromSlug || pathPart).replace(/^\/+/, "");
+  const sub = (fromSlug || pathPart).replace(/^\/+/, "");
   if (!sub) return;
 
   req.url = `${AUTH_PREFIX}/${sub}${q}`;
