@@ -1,5 +1,4 @@
-/// <reference types="vite/client" />
-
+/** Replaces Vite's import.meta.env typing (esbuild inlines `define` at build time). */
 interface ImportMetaEnv {
   readonly VITE_AUTH_URL?: string;
 }

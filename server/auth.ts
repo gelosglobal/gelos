@@ -33,7 +33,7 @@ const transaction =
 function resolveBaseURL(): string {
   const u = process.env.BETTER_AUTH_URL?.trim().replace(/\/$/, "");
   if (u) return u;
-  return "http://localhost:5173";
+  return "http://localhost:3005";
 }
 
 /** Origins for CORS / cookies: your site + optional extra domains from env. */
@@ -44,12 +44,7 @@ function resolveTrustedOrigins(): string[] {
     .filter(Boolean);
 
   const base = resolveBaseURL();
-  const local = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3005",
-    "http://127.0.0.1:3005",
-  ];
+  const local = ["http://localhost:3005", "http://127.0.0.1:3005", "http://localhost:5173", "http://127.0.0.1:5173"];
   const merged =
     base.startsWith("http://localhost") || base.startsWith("http://127.0.0.1")
       ? [base, ...extra, ...local]

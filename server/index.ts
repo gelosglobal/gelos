@@ -18,13 +18,12 @@ if (process.env.NODE_ENV === "production") {
 }
 
 /**
- * better-call builds the Web Request URL from Host + proto. After the Vite proxy, Host can be
- * 127.0.0.1:3005 while BETTER_AUTH_URL is http://localhost:5173 — Better Auth then rejects
- * sign-in / session. Force the public origin from env in dev; in prod use forwarded headers.
+ * better-call builds the Web Request URL from Host + proto. In dev, align with BETTER_AUTH_URL
+ * (same Express port as the UI — no separate dev server).
  */
 app.use((req, _res, next) => {
   if (process.env.NODE_ENV !== "production") {
-    const raw = process.env.BETTER_AUTH_URL?.trim() || "http://localhost:5173";
+    const raw = process.env.BETTER_AUTH_URL?.trim() || "http://localhost:3005";
     try {
       const u = new URL(raw);
       req.headers.host = u.host;
@@ -90,7 +89,7 @@ if (hasDist) {
 async function main() {
   await mongoClient.connect();
   app.listen(port, () => {
-    const where = hasDist ? `+ static from dist/` : "(API only — run Vite separately or build first)";
+    const where = hasDist ? `+ static from dist/` : "(run pnpm run build, or pnpm dev for watch)";
     console.log(`[gelos] http://localhost:${port}  ${where}  MongoDB: connected`);
   });
 }
