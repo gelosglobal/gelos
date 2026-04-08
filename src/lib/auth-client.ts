@@ -1,6 +1,6 @@
 import { createAuthClient } from "better-auth/react";
 
-/** Proxied via Vite to the auth server — use same origin */
+/** Dev: empty baseURL → same origin (Vite :5173, /api/auth proxied to Express). Prod: set VITE_AUTH_URL only if API is on another host. */
 export const authClient = createAuthClient({
   baseURL: import.meta.env.VITE_AUTH_URL ?? "",
 });

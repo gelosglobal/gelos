@@ -17,6 +17,35 @@ if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
 
+/**
+ * better-call builds the Web Request URL from Host + proto. After the Vite proxy, Host can be
+ * 127.0.0.1:3005 while BETTER_AUTH_URL is http://localhost:5173 — Better Auth then rejects
+ * sign-in / session. Force the public origin from env in dev; in prod use forwarded headers.
+ */
+app.use((req, _res, next) => {
+  if (process.env.NODE_ENV !== "production") {
+    const raw = process.env.BETTER_AUTH_URL?.trim() || "http://localhost:5173";
+    try {
+      const u = new URL(raw);
+      req.headers.host = u.host;
+      req.headers["x-forwarded-proto"] = u.protocol.replace(":", "");
+    } catch {
+      /* keep incoming */
+    }
+    next();
+    return;
+  }
+  const xf = req.headers["x-forwarded-host"];
+  if (typeof xf === "string" && xf) {
+    req.headers.host = xf.split(",")[0].trim();
+  }
+  const proto = req.headers["x-forwarded-proto"];
+  if (typeof proto === "string" && proto) {
+    req.headers["x-forwarded-proto"] = proto.split(",")[0].trim();
+  }
+  next();
+});
+
 app.use(
   cors({
     origin: getCorsOrigins(),
@@ -26,8 +55,8 @@ app.use(
 
 const authHandler = toNodeHandler(auth);
 app.use((req, res, next) => {
-  const p = (req.url ?? "/").split("?")[0] ?? "/";
-  if (!p.startsWith("/api/auth")) {
+  const pathOnly = (req.originalUrl ?? req.url ?? "/").split("?")[0] ?? "/";
+  if (!pathOnly.startsWith("/api/auth")) {
     next();
     return;
   }

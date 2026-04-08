@@ -19,8 +19,15 @@ const dbName = process.env.MONGODB_DB_NAME || "gelos";
 export const mongoClient = new MongoClient(mongoUri());
 
 const txEnv = process.env.MONGODB_TRANSACTIONS;
+/** Local Mongo standalone often has no replica set — transactions fail unless explicitly enabled. */
 const transaction =
-  txEnv === "true" ? true : txEnv === "false" ? false : undefined;
+  txEnv === "true"
+    ? true
+    : txEnv === "false"
+      ? false
+      : process.env.NODE_ENV !== "production"
+        ? false
+        : undefined;
 
 /** Public origin where the app is served (no trailing slash). In production set to your real URL, e.g. https://staff.gelosglobal.com */
 function resolveBaseURL(): string {
@@ -37,7 +44,12 @@ function resolveTrustedOrigins(): string[] {
     .filter(Boolean);
 
   const base = resolveBaseURL();
-  const local = ["http://localhost:5173", "http://127.0.0.1:5173"];
+  const local = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3005",
+    "http://127.0.0.1:3005",
+  ];
   const merged =
     base.startsWith("http://localhost") || base.startsWith("http://127.0.0.1")
       ? [base, ...extra, ...local]
