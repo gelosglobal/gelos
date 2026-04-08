@@ -16,6 +16,26 @@ function slugFromQuery(req: VercelRequest): string {
   return "";
 }
 
+/** When query helpers omit `slug`, derive path after `/api/` from `req.url` (Vercel catch-all). */
+function slugFromUrlPath(url: string | undefined): string {
+  if (!url) return "";
+  const pathOnly = url.split("?")[0] ?? "";
+  if (pathOnly.startsWith("/api/")) return pathOnly.slice(5);
+  try {
+    const p = new URL(url, "http://local").pathname;
+    if (p.startsWith("/api/")) return p.slice(5);
+  } catch {
+    /* ignore */
+  }
+  return "";
+}
+
+function resolveApiSlug(req: VercelRequest): string {
+  const fromQuery = slugFromQuery(req);
+  if (fromQuery) return fromQuery;
+  return slugFromUrlPath(req.url);
+}
+
 function syncOriginalUrl(req: VercelRequest, full: string) {
   const r = req as VercelRequest & { originalUrl?: string };
   r.originalUrl = full;
@@ -25,7 +45,7 @@ export default async function apiSlug(req: VercelRequest, res: VercelResponse) {
   try {
     const raw = req.url ?? "/";
     const q = raw.includes("?") ? raw.slice(raw.indexOf("?")) : "";
-    const slug = slugFromQuery(req);
+    const slug = resolveApiSlug(req);
 
     if (!slug.startsWith("auth")) {
       res.status(404).end();
