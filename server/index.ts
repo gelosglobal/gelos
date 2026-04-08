@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express from "express";
 import { toNodeHandler } from "better-auth/node";
-import { getAuth, getCorsOrigins, getMongoClient } from "../api/lib/auth";
+import { getAuth, getCorsOrigins, getMongoClient } from "../api/auth/auth-config";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.join(__dirname, "../dist");

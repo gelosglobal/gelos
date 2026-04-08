@@ -3,7 +3,7 @@
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { toNodeHandler } from "better-auth/node";
-import { getAuth, getMongoClient } from "../lib/auth";
+import { getAuth, getMongoClient } from "./auth-config";
 
 let nodeHandler: ReturnType<typeof toNodeHandler> | null = null;
 function getNodeHandler() {
