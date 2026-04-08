@@ -15,11 +15,8 @@ function mongoUri(): string {
 
 const dbName = process.env.MONGODB_DB_NAME || "gelos";
 
-/** Single client for adapter + connection pooling. */
-export const mongoClient = new MongoClient(mongoUri());
-
 const txEnv = process.env.MONGODB_TRANSACTIONS;
-/** Local Mongo standalone often has no replica set — transactions fail unless explicitly enabled. */
+/** Atlas: leave unset → adapter defaults to transactions; standalone local: set MONGODB_TRANSACTIONS=false */
 const transaction =
   txEnv === "true"
     ? true
@@ -29,14 +26,12 @@ const transaction =
         ? false
         : undefined;
 
-/** Public origin where the app is served (no trailing slash). In production set to your real URL, e.g. https://staff.gelosglobal.com */
 function resolveBaseURL(): string {
   const u = process.env.BETTER_AUTH_URL?.trim().replace(/\/$/, "");
   if (u) return u;
   return "http://localhost:3005";
 }
 
-/** Origins for CORS / cookies: your site + optional extra domains from env. */
 function resolveTrustedOrigins(): string[] {
   const extra = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
     .split(",")
@@ -58,14 +53,42 @@ export function getCorsOrigins(): string[] | boolean {
   return resolveTrustedOrigins();
 }
 
-export const auth = betterAuth({
-  secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: resolveBaseURL(),
-  basePath: "/api/auth",
-  database: mongodbAdapter(mongoClient.db(dbName), {
-    client: mongoClient,
-    transaction,
-  }),
-  emailAndPassword: { enabled: true },
-  trustedOrigins: resolveTrustedOrigins(),
-});
+let mongoClientSingleton: MongoClient | null = null;
+/** Inferred Auth type is overly narrow vs BetterAuthOptions; keep as untyped singleton. */
+let authSingleton: ReturnType<typeof betterAuth> | null = null;
+
+/**
+ * Lazy init so missing env does not throw during Vercel cold-start module load
+ * (import-time throws become FUNCTION_INVOCATION_FAILED with no JSON body).
+ */
+export function getMongoClient(): MongoClient {
+  if (!mongoClientSingleton) {
+    mongoClientSingleton = new MongoClient(mongoUri(), {
+      serverSelectionTimeoutMS: 15_000,
+      connectTimeoutMS: 15_000,
+    });
+  }
+  return mongoClientSingleton;
+}
+
+export function getAuth(): ReturnType<typeof betterAuth> {
+  if (!authSingleton) {
+    const secret = process.env.BETTER_AUTH_SECRET?.trim();
+    if (!secret) {
+      throw new Error("BETTER_AUTH_SECRET is not set");
+    }
+    const client = getMongoClient();
+    authSingleton = betterAuth({
+      secret,
+      baseURL: resolveBaseURL(),
+      basePath: "/api/auth",
+      database: mongodbAdapter(client.db(dbName), {
+        client,
+        transaction,
+      }),
+      emailAndPassword: { enabled: true },
+      trustedOrigins: resolveTrustedOrigins(),
+    }) as ReturnType<typeof betterAuth>;
+  }
+  return authSingleton;
+}

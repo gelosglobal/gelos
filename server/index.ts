@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express from "express";
 import { toNodeHandler } from "better-auth/node";
-import { auth, getCorsOrigins, mongoClient } from "../api/lib/auth";
+import { getAuth, getCorsOrigins, getMongoClient } from "../api/lib/auth";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.join(__dirname, "../dist");
@@ -52,7 +52,7 @@ app.use(
   }),
 );
 
-const authHandler = toNodeHandler(auth);
+const authHandler = toNodeHandler(getAuth());
 app.use((req, res, next) => {
   const pathOnly = (req.originalUrl ?? req.url ?? "/").split("?")[0] ?? "/";
   if (!pathOnly.startsWith("/api/auth")) {
@@ -87,7 +87,7 @@ if (hasDist) {
 }
 
 async function main() {
-  await mongoClient.connect();
+  await getMongoClient().connect();
   app.listen(port, () => {
     const where = hasDist ? `+ static from dist/` : "(run pnpm run build, or pnpm dev for watch)";
     console.log(`[gelos] http://localhost:${port}  ${where}  MongoDB: connected`);

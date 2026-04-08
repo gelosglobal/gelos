@@ -1,12 +1,15 @@
 /**
  * Handles all Better Auth routes: /api/auth/get-session, /api/auth/sign-in/email, etc.
- * Nested under `api/auth/` so Vercel reliably matches multi-segment paths (root `api/[...slug]` can 404).
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { toNodeHandler } from "better-auth/node";
-import { auth, mongoClient } from "../lib/auth";
+import { getAuth, getMongoClient } from "../lib/auth";
 
-const nodeHandler = toNodeHandler(auth);
+let nodeHandler: ReturnType<typeof toNodeHandler> | null = null;
+function getNodeHandler() {
+  if (!nodeHandler) nodeHandler = toNodeHandler(getAuth());
+  return nodeHandler;
+}
 
 function restAfterAuth(req: VercelRequest): string {
   const p = req.query.path;
@@ -29,6 +32,12 @@ function syncOriginalUrl(req: VercelRequest, full: string) {
   r.originalUrl = full;
 }
 
+function hasMongoUri(): boolean {
+  return Boolean(
+    process.env.MONGODB_URI || process.env.DATABASE_URL || process.env.DATABASE_URl,
+  );
+}
+
 export default async function authCatchAll(req: VercelRequest, res: VercelResponse) {
   try {
     const raw = req.url ?? "/";
@@ -40,16 +49,25 @@ export default async function authCatchAll(req: VercelRequest, res: VercelRespon
 
     if (!process.env.BETTER_AUTH_SECRET) {
       console.error("[auth] BETTER_AUTH_SECRET is not set");
-      res.status(500).json({ error: "server_misconfigured" });
+      res.status(500).json({ error: "server_misconfigured", detail: "missing_BETTER_AUTH_SECRET" });
+      return;
+    }
+    if (!hasMongoUri()) {
+      console.error("[auth] DATABASE_URL / MONGODB_URI is not set");
+      res.status(500).json({ error: "server_misconfigured", detail: "missing_database_url" });
       return;
     }
 
-    await mongoClient.connect();
-    await nodeHandler(req, res);
+    await getMongoClient().connect();
+    await getNodeHandler()(req, res);
   } catch (err) {
     console.error("[auth] handler error:", err);
     if (!res.headersSent) {
-      res.status(500).json({ error: "auth_failed" });
+      const payload: { error: string; detail?: string } = { error: "auth_failed" };
+      if (process.env.VERCEL_ENV === "development" || process.env.NODE_ENV !== "production") {
+        payload.detail = err instanceof Error ? err.message : String(err);
+      }
+      res.status(500).json(payload);
     }
   }
 }
