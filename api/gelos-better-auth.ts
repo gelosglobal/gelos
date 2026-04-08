@@ -1,12 +1,11 @@
 /**
- * Better Auth handler for Vercel (root catch-all under `/api/*`).
+ * Better Auth on Vercel — invoked via rewrite from `/api/auth/**` (see `vercel.json`).
  *
- * Use `api/[...path].ts` (not `api/auth/[...path].ts`): on Vercel, a nested catch-all
- * after a static `auth` segment only matched one path segment, so `/api/auth/sign-in/email`
- * returned NOT_FOUND while `/api/auth/get-session` worked.
+ * Dynamic files like `api/[...path].ts` are unreliable for multi-segment `/api/auth/sign-in/email`
+ * on static + outputDirectory projects. Vercel rewrites `/api/auth/:rest*` → this function and
+ * passes `rest` as a query param (same behavior as `/resize/:w/:h` → `/api/sharp?w=&h=`).
  *
- * Self-contained — do not import other project files (Vercel bundles this file alone).
- * Mirror changes in `server/auth-config.ts` (Express).
+ * Self-contained — do not import other project files. Mirror `server/auth-config.ts` (Express).
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
@@ -100,28 +99,35 @@ function getNodeHandler() {
   return nodeHandler;
 }
 
-/** Path after `/api/` from Vercel `[...path]` (multi-segment) or from `req.url`. */
-function pathAfterApi(req: VercelRequest): string {
-  const q = req.query.path;
-  if (Array.isArray(q) && q.length > 0) {
-    return q.map(String).join("/");
-  }
-  if (typeof q === "string" && q.length > 0) {
-    return q;
-  }
-  const raw = req.url?.split("?")[0] ?? "";
-  if (raw.startsWith("/api/")) {
-    return raw.slice("/api/".length);
-  }
+/** Rebuild `/api/auth/...` URL from rewrite query (`rest`) or direct `/api/auth/...` hit. */
+function resolveAuthUrl(req: VercelRequest): string {
+  const raw = req.url ?? "/";
+  const base = `http://${req.headers.host || "localhost"}`;
+  let u: URL;
   try {
-    const pathname = new URL(req.url ?? "/", "http://local").pathname;
-    if (pathname.startsWith("/api/")) {
-      return pathname.slice("/api/".length);
-    }
+    u = new URL(raw, base);
   } catch {
-    /* ignore */
+    return "/api/auth";
   }
-  return "";
+
+  const restParam = u.searchParams.get("rest");
+  u.searchParams.delete("rest");
+  const qs = u.searchParams.toString();
+  const suffix = qs ? `?${qs}` : "";
+
+  if (restParam !== null && restParam !== "") {
+    return `/api/auth/${restParam}${suffix}`;
+  }
+
+  const pathname = u.pathname;
+  if (pathname.startsWith("/api/auth/")) {
+    return `${pathname}${suffix}`;
+  }
+  if (pathname === "/api/auth") {
+    return `/api/auth${suffix}`;
+  }
+
+  return `/api/auth${suffix}`;
 }
 
 function syncOriginalUrl(req: VercelRequest, full: string) {
@@ -135,17 +141,9 @@ function hasMongoUri(): boolean {
   );
 }
 
-export default async function apiCatchAll(req: VercelRequest, res: VercelResponse) {
+export default async function gelosBetterAuth(req: VercelRequest, res: VercelResponse) {
   try {
-    const raw = req.url ?? "/";
-    const qs = raw.includes("?") ? raw.slice(raw.indexOf("?")) : "";
-    const afterApi = pathAfterApi(req);
-    if (afterApi !== "auth" && !afterApi.startsWith("auth/")) {
-      res.status(404).send("Not found");
-      return;
-    }
-
-    const fullPath = `/api/${afterApi}${qs}`;
+    const fullPath = resolveAuthUrl(req);
     req.url = fullPath;
     syncOriginalUrl(req, fullPath);
 

@@ -1,6 +1,6 @@
 /**
  * Better Auth + Mongo (Express / local dev).
- * Kept in sync with `api/[...path].ts` — Vercel bundles that file alone (no local imports).
+ * Kept in sync with `api/gelos-better-auth.ts` — Vercel bundles that file alone (no local imports).
  */
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
 import { betterAuth } from "better-auth";

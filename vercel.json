@@ -4,11 +4,19 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/[...path].ts": {
+    "api/gelos-better-auth.ts": {
       "maxDuration": 30
     }
   },
   "rewrites": [
+    {
+      "source": "/api/auth",
+      "destination": "/api/gelos-better-auth"
+    },
+    {
+      "source": "/api/auth/:rest*",
+      "destination": "/api/gelos-better-auth"
+    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
