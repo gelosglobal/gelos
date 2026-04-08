@@ -12,8 +12,3 @@ export default async function vercelAuth(req: VercelRequest, res: VercelResponse
   await mongoClient.connect();
   await handler(req, res);
 }
-
-export const config = {
-  /** Vercel Hobby max is 10s; increase on Pro if cold starts + DB are slow. */
-  maxDuration: 10,
-};
