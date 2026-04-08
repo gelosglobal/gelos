@@ -1,3 +1,7 @@
+/**
+ * Better Auth + Mongo (Express / local dev).
+ * Kept in sync with `api/auth/[...path].ts` — Vercel bundles that file alone (no local imports).
+ */
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
 import { betterAuth } from "better-auth";
 import { MongoClient } from "mongodb";
@@ -16,7 +20,6 @@ function mongoUri(): string {
 const dbName = process.env.MONGODB_DB_NAME || "gelos";
 
 const txEnv = process.env.MONGODB_TRANSACTIONS;
-/** Atlas: leave unset → adapter defaults to transactions; standalone local: set MONGODB_TRANSACTIONS=false */
 const transaction =
   txEnv === "true"
     ? true
@@ -48,19 +51,13 @@ function resolveTrustedOrigins(): string[] {
   return [...new Set(merged)];
 }
 
-/** For Express `cors()` when running `pnpm dev:auth` / `start:auth`. */
 export function getCorsOrigins(): string[] | boolean {
   return resolveTrustedOrigins();
 }
 
 let mongoClientSingleton: MongoClient | null = null;
-/** Inferred Auth type is overly narrow vs BetterAuthOptions; keep as untyped singleton. */
 let authSingleton: ReturnType<typeof betterAuth> | null = null;
 
-/**
- * Lazy init so missing env does not throw during Vercel cold-start module load
- * (import-time throws become FUNCTION_INVOCATION_FAILED with no JSON body).
- */
 export function getMongoClient(): MongoClient {
   if (!mongoClientSingleton) {
     mongoClientSingleton = new MongoClient(mongoUri(), {
