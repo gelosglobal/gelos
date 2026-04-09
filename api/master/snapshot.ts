@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getPrisma } from "../_prisma";
-import { computeMasterSummary } from "./_summary";
+import { getPrisma } from "../_prisma.js";
+import { computeMasterSummary } from "./_summary.js";
 
 export default async function masterSnapshot(req: VercelRequest, res: VercelResponse) {
   try {

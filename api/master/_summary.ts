@@ -1,4 +1,4 @@
-import { getPrisma } from "../_prisma";
+import { getPrisma } from "../_prisma.js";
 
 function utcDayStart(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
