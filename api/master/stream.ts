@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { prisma } from "../_prisma";
+import { getPrisma } from "../_prisma";
 import { computeMasterSummary } from "./_summary";
 
 export const config = {
@@ -10,6 +10,7 @@ export const config = {
 
 export default async function masterStream(req: VercelRequest, res: VercelResponse) {
   try {
+    const prisma = getPrisma();
     const orgIdFromQuery = typeof req.query.orgId === "string" ? req.query.orgId : undefined;
     const org =
       orgIdFromQuery

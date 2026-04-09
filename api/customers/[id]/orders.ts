@@ -1,8 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { prisma } from "../../_prisma";
+import { getPrisma } from "../../_prisma";
 
 export default async function customerOrders(req: VercelRequest, res: VercelResponse) {
   try {
+    const prisma = getPrisma();
     const id = typeof req.query.id === "string" ? req.query.id : Array.isArray(req.query.id) ? req.query.id[0] : "";
     if (!id) {
       res.status(400).json({ error: "missing_id" });
@@ -38,7 +39,10 @@ export default async function customerOrders(req: VercelRequest, res: VercelResp
     res.json({ orders });
   } catch (err) {
     console.error("[customers] orders error:", err);
-    res.status(500).json({ error: "customer_orders_failed" });
+    res.status(500).json({
+      error: "customer_orders_failed",
+      detail: process.env.NODE_ENV !== "production" ? (err instanceof Error ? err.message : String(err)) : undefined,
+    });
   }
 }
 

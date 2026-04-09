@@ -1,8 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { prisma } from "./_prisma";
+import { getPrisma } from "./_prisma";
 
 export default async function customers(req: VercelRequest, res: VercelResponse) {
   try {
+    const prisma = getPrisma();
     if (req.method === "GET") {
       const orgIdFromQuery = typeof req.query.orgId === "string" ? req.query.orgId : undefined;
       const q = typeof req.query.q === "string" ? req.query.q.trim().toLowerCase() : "";
@@ -122,7 +123,10 @@ export default async function customers(req: VercelRequest, res: VercelResponse)
     res.status(405).json({ error: "method_not_allowed" });
   } catch (err) {
     console.error("[customers] error:", err);
-    res.status(500).json({ error: "customers_failed" });
+    res.status(500).json({
+      error: "customers_failed",
+      detail: process.env.NODE_ENV !== "production" ? (err instanceof Error ? err.message : String(err)) : undefined,
+    });
   }
 }
 

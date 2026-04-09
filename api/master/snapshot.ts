@@ -1,9 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { prisma } from "../_prisma";
+import { getPrisma } from "../_prisma";
 import { computeMasterSummary } from "./_summary";
 
 export default async function masterSnapshot(req: VercelRequest, res: VercelResponse) {
   try {
+    const prisma = getPrisma();
     const orgIdFromQuery = typeof req.query.orgId === "string" ? req.query.orgId : undefined;
     const org =
       orgIdFromQuery
@@ -44,7 +45,10 @@ export default async function masterSnapshot(req: VercelRequest, res: VercelResp
     });
   } catch (err) {
     console.error("[master] snapshot error:", err);
-    res.status(500).json({ error: "master_snapshot_failed" });
+    res.status(500).json({
+      error: "master_snapshot_failed",
+      detail: process.env.NODE_ENV !== "production" ? (err instanceof Error ? err.message : String(err)) : undefined,
+    });
   }
 }
 

@@ -6,13 +6,12 @@
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 30,
-      "includeFiles": "node_modules/.prisma/**"
-    },
-    "api/gelos-better-auth.ts": {
-      "maxDuration": 30
-    },
-    "api/master/stream.ts": {
-      "maxDuration": 30
+      "includeFiles": [
+        "node_modules/.prisma/**",
+        "node_modules/@prisma/**",
+        "node_modules/.pnpm/**/.prisma/**",
+        "node_modules/.pnpm/**/@prisma/**"
+      ]
     }
   },
   "rewrites": [

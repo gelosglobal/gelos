@@ -1,4 +1,4 @@
-import { prisma } from "../_prisma";
+import { getPrisma } from "../_prisma";
 
 function utcDayStart(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
@@ -13,6 +13,7 @@ function classifyStorePlatform(platform: string | null | undefined): "dtc" | "sf
 }
 
 export async function computeMasterSummary(orgId: string) {
+  const prisma = getPrisma();
   const now = new Date();
   const dayStart = utcDayStart(now);
   const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
