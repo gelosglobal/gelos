@@ -111,7 +111,7 @@ export default function AppShell() {
     if (page === "master") return <MasterDashboardLive />;
     if (page === "dtc-orders") return <OrdersEngine />;
     if (page === "dtc-customers") return <CustomerIntelligence />;
-    if (page === "dtc-inventory") return <DTCInventory {...props} />;
+    if (page === "dtc-inventory") return <DTCInventory />;
     if (page === "dtc-products") return <ProductPerformance {...props} />;
     if (page === "dtc-marketing") return <MarketingAttribution {...props} />;
     if (page === "dtc-finance") return <FinanceLayer {...props} />;

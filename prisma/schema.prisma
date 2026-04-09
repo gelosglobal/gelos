@@ -153,6 +153,23 @@ model Customer {
   @@index([orgId, phone])
 }
 
+model DtcInventoryItem {
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  orgId   String  @db.ObjectId
+  storeId String? @db.ObjectId
+
+  sku      String
+  stock    Int    @default(0)
+  reorder  Int    @default(0)
+  velocity Float  @default(0) // units/day
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, storeId, sku])
+  @@index([orgId, sku])
+  @@index([orgId, storeId])
+}
+
 model CheckoutEvent {
   id      String  @id @default(auto()) @map("_id") @db.ObjectId
   orgId   String  @db.ObjectId

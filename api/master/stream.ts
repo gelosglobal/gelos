@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getPrisma } from "../_prisma.js";
 import { computeMasterSummary } from "./_summary.js";
+import { ensureOrg } from "../_ensureOrg.js";
 
 export const config = {
   api: {
@@ -12,15 +13,7 @@ export default async function masterStream(req: VercelRequest, res: VercelRespon
   try {
     const prisma = getPrisma();
     const orgIdFromQuery = typeof req.query.orgId === "string" ? req.query.orgId : undefined;
-    const org =
-      orgIdFromQuery
-        ? await prisma.organization.findUnique({ where: { id: orgIdFromQuery }, select: { id: true } })
-        : await prisma.organization.findFirst({ select: { id: true } });
-
-    if (!org) {
-      res.status(400).json({ error: "no_org_configured" });
-      return;
-    }
+    const org = await ensureOrg(prisma as any, orgIdFromQuery);
 
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache, no-transform");

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getPrisma } from "./_prisma.js";
+import { ensureOrg } from "./_ensureOrg.js";
 
 export default async function customers(req: VercelRequest, res: VercelResponse) {
   try {
@@ -11,15 +12,7 @@ export default async function customers(req: VercelRequest, res: VercelResponse)
       const limitRaw = typeof req.query.limit === "string" ? Number(req.query.limit) : 200;
       const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 500) : 200;
 
-      const org =
-        orgIdFromQuery
-          ? await prisma.organization.findUnique({ where: { id: orgIdFromQuery }, select: { id: true } })
-          : await prisma.organization.findFirst({ select: { id: true } });
-
-      if (!org) {
-        res.json({ orgId: null, customers: [] });
-        return;
-      }
+      const org = await ensureOrg(prisma as any, orgIdFromQuery);
 
       const where: any = { orgId: org.id };
       if (segment) where.segment = segment;
@@ -62,15 +55,7 @@ export default async function customers(req: VercelRequest, res: VercelResponse)
     if (req.method === "POST") {
       const body = (req.body ?? {}) as any;
       const orgIdFromQuery = typeof req.query.orgId === "string" ? req.query.orgId : undefined;
-      const org =
-        orgIdFromQuery
-          ? await prisma.organization.findUnique({ where: { id: orgIdFromQuery }, select: { id: true } })
-          : await prisma.organization.findFirst({ select: { id: true } });
-
-      if (!org) {
-        res.status(400).json({ error: "no_org_configured" });
-        return;
-      }
+      const org = await ensureOrg(prisma as any, orgIdFromQuery);
 
       const name = String(body.name ?? "").trim();
       if (!name) {

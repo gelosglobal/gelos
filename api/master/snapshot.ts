@@ -1,32 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getPrisma } from "../_prisma.js";
 import { computeMasterSummary } from "./_summary.js";
+import { ensureOrg } from "../_ensureOrg.js";
 
 export default async function masterSnapshot(req: VercelRequest, res: VercelResponse) {
   try {
     const prisma = getPrisma();
     const orgIdFromQuery = typeof req.query.orgId === "string" ? req.query.orgId : undefined;
-    const org =
-      orgIdFromQuery
-        ? await prisma.organization.findUnique({ where: { id: orgIdFromQuery }, select: { id: true, name: true } })
-        : await prisma.organization.findFirst({ select: { id: true, name: true } });
-
-    if (!org) {
-      res.json({
-        orgId: null,
-        orgName: null,
-        summary: {
-          asOf: new Date().toISOString(),
-          kpis: { orders: 0, revenue: 0, refunds: 0, checkoutsStarted: 0, activeCheckouts: 0, currency: null },
-          mix: { dtc: { orders: 0, revenue: 0 }, sf: { orders: 0, revenue: 0 }, unknown: { orders: 0, revenue: 0 }, total: { orders: 0, revenue: 0 } },
-          risk: { ordersLastHour: 0, revenueLastHour: 0, ordersLast15m: 0, revenuePerOrder: 0, refundRate: 0 },
-          alerts: [],
-        },
-        recentEvents: [],
-        asOf: new Date().toISOString(),
-      });
-      return;
-    }
+    const org = await ensureOrg(prisma as any, orgIdFromQuery);
 
     const summary = await computeMasterSummary(org.id);
     const recentEvents = await prisma.liveEvent.findMany({
@@ -38,7 +19,7 @@ export default async function masterSnapshot(req: VercelRequest, res: VercelResp
 
     res.json({
       orgId: org.id,
-      orgName: org.name,
+      orgName: org.name ?? "Gelos",
       summary,
       recentEvents,
       asOf: new Date().toISOString(),
