@@ -32,25 +32,35 @@ export default async function dtcInventory(req: VercelRequest, res: VercelRespon
       const reorder = Number(body.reorder ?? 0);
       const velocity = Number(body.velocity ?? 0);
 
-      const upserted = await prisma.dtcInventoryItem.upsert({
-        where: {
-          orgId_storeId_sku: { orgId: org.id, storeId: storeIdFromQuery ?? null, sku },
-        },
-        create: {
-          orgId: org.id,
-          storeId: storeIdFromQuery ?? null,
-          sku,
-          stock: Number.isFinite(stock) ? Math.max(0, Math.round(stock)) : 0,
-          reorder: Number.isFinite(reorder) ? Math.max(0, Math.round(reorder)) : 0,
-          velocity: Number.isFinite(velocity) ? Math.max(0, velocity) : 0,
-        },
-        update: {
-          stock: Number.isFinite(stock) ? Math.max(0, Math.round(stock)) : undefined,
-          reorder: Number.isFinite(reorder) ? Math.max(0, Math.round(reorder)) : undefined,
-          velocity: Number.isFinite(velocity) ? Math.max(0, velocity) : undefined,
-        },
-        select: { id: true, sku: true, stock: true, reorder: true, velocity: true, updatedAt: true },
+      // Avoid Mongo unique-index dependency for upsert on fresh deployments:
+      // do "update-first, else create" against (orgId, storeId, sku).
+      const where = { orgId: org.id, storeId: storeIdFromQuery ?? null, sku };
+      const next = {
+        stock: Number.isFinite(stock) ? Math.max(0, Math.round(stock)) : undefined,
+        reorder: Number.isFinite(reorder) ? Math.max(0, Math.round(reorder)) : undefined,
+        velocity: Number.isFinite(velocity) ? Math.max(0, velocity) : undefined,
+      };
+
+      const existing = await prisma.dtcInventoryItem.findFirst({
+        where,
+        select: { id: true },
       });
+
+      const upserted = existing
+        ? await prisma.dtcInventoryItem.update({
+            where: { id: existing.id },
+            data: next,
+            select: { id: true, sku: true, stock: true, reorder: true, velocity: true, updatedAt: true },
+          })
+        : await prisma.dtcInventoryItem.create({
+            data: {
+              ...where,
+              stock: next.stock ?? 0,
+              reorder: next.reorder ?? 0,
+              velocity: next.velocity ?? 0,
+            } as any,
+            select: { id: true, sku: true, stock: true, reorder: true, velocity: true, updatedAt: true },
+          });
 
       res.status(201).json({ item: upserted });
       return;
@@ -59,7 +69,10 @@ export default async function dtcInventory(req: VercelRequest, res: VercelRespon
     res.status(405).json({ error: "method_not_allowed" });
   } catch (err) {
     console.error("[dtc-inventory] error:", err);
-    res.status(500).json({ error: "dtc_inventory_failed" });
+    res.status(500).json({
+      error: "dtc_inventory_failed",
+      detail: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
