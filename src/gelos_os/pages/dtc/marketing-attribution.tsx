@@ -1,27 +1,114 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { C, MKT_CHANNELS } from "../../constants";
 import { fmtGHS, pctOf, today, uid } from "../../lib";
 import { S } from "../../styles";
 import { AIBox, Badge, Field, Modal } from "../../ui";
 
-export function MarketingAttribution({ data, onAdd }: any) {
+type ApiCampaign = {
+  id: string;
+  externalId: string | null;
+  name: string;
+  channel: string;
+  spend: number;
+  status: string;
+  startDate: string;
+  endDate: string | null;
+};
+
+type ApiOrder = {
+  id: string;
+  externalId: string | null;
+  customerName: string;
+  items: any[];
+  total: number;
+  currency: string | null;
+  paymentMethod: string;
+  source: string;
+  status: string;
+  orderDate: string;
+  notes: string | null;
+};
+
+async function safeJson(r: Response) {
+  const ct = r.headers.get("content-type") || "";
+  const text = await r.text();
+  if (!ct.includes("application/json")) {
+    throw new Error(`API error (${r.status}): expected JSON but got ${ct || "unknown"} — ${text.slice(0, 80)}`);
+  }
+  return JSON.parse(text);
+}
+
+export function MarketingAttribution() {
   const [modal, setModal] = useState(false);
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
+  const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState<any>({ name: "", channel: MKT_CHANNELS[0], spend: 0, startDate: today(), endDate: "", status: "Active" });
   const upd = (e: any) => setForm((f: any) => ({ ...f, [e.target.name]: e.target.type === "number" ? Number(e.target.value) : e.target.value }));
-  const save = () => {
+  const save = async () => {
     if (!form.name.trim()) return alert("Name required");
-    onAdd("campaigns", { ...form, id: "CAM-" + uid() });
-    setModal(false);
+    setLoading(true);
+    setErr(null);
+    try {
+      const qs = new URLSearchParams();
+      if (orgId) qs.set("orgId", orgId);
+      const payload = { ...form, externalId: "CAM-" + uid() };
+      const r = await fetch(`/api/campaigns?${qs.toString()}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      const d = await safeJson(r);
+      if (!r.ok) throw new Error(d?.error ?? "Failed to create campaign");
+      setCampaigns((cs) => [d.campaign, ...cs]);
+      setModal(false);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to create campaign");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const delivered = data.orders.filter((o: any) => o.status === "Delivered");
-  const totalRev = delivered.reduce((s: number, o: any) => s + o.value, 0);
-  const totalSpend = data.campaigns.reduce((s: number, c: any) => s + c.spend, 0);
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const snap = await fetch("/api/master/snapshot", { credentials: "include" });
+        const snapJson = await safeJson(snap);
+        const oid = snapJson?.orgId ?? null;
+        setOrgId(oid);
+
+        const qs = new URLSearchParams();
+        if (oid) qs.set("orgId", oid);
+
+        const [cRes, oRes] = await Promise.all([
+          fetch(`/api/campaigns?${qs.toString()}`, { credentials: "include" }),
+          fetch(`/api/orders?${qs.toString()}&limit=200`, { credentials: "include" }),
+        ]);
+        const cJson = await safeJson(cRes);
+        const oJson = await safeJson(oRes);
+        setCampaigns(cJson.campaigns ?? []);
+        setOrders(oJson.orders ?? []);
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "Failed to load marketing data");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const delivered = useMemo(() => orders.filter((o: any) => o.status === "Delivered"), [orders]);
+  const totalRev = useMemo(() => delivered.reduce((s: number, o: any) => s + (Number(o.total) || 0), 0), [delivered]);
+  const totalSpend = useMemo(() => campaigns.reduce((s: number, c: any) => s + (Number(c.spend) || 0), 0), [campaigns]);
 
   const chanStats = MKT_CHANNELS.map((ch) => {
     const chOrds = delivered.filter((o: any) => o.source === ch);
-    const rev = chOrds.reduce((s: number, o: any) => s + o.value, 0);
-    const camp = data.campaigns.find((c: any) => c.channel === ch);
+    const rev = chOrds.reduce((s: number, o: any) => s + (Number(o.total) || 0), 0);
+    const camp = campaigns.find((c: any) => c.channel === ch);
     const spend = camp?.spend || 0;
     const roas = spend ? Math.round((rev / spend) * 100) / 100 : null;
     return { ch, orders: chOrds.length, rev, spend, roas };
@@ -29,9 +116,10 @@ export function MarketingAttribution({ data, onAdd }: any) {
     .filter((c: any) => c.orders > 0 || c.spend > 0)
     .sort((a: any, b: any) => b.rev - a.rev);
 
-  const campStats = data.campaigns.map((c: any) => {
-    const ords = delivered.filter((o: any) => o.campaignId === c.id);
-    const rev = ords.reduce((s: number, o: any) => s + o.value, 0);
+  const campStats = campaigns.map((c: any) => {
+    // We don't have explicit campaignId on orders yet; approximate by channel.
+    const ords = delivered.filter((o: any) => o.source === c.channel);
+    const rev = ords.reduce((s: number, o: any) => s + (Number(o.total) || 0), 0);
     return { ...c, orders: ords.length, rev, roas: c.spend ? Math.round((rev / c.spend) * 100) / 100 : 0 };
   });
 
@@ -42,7 +130,7 @@ export function MarketingAttribution({ data, onAdd }: any) {
           ["Total Spend", fmtGHS(totalSpend), "", C.warn],
           ["Revenue Tracked", fmtGHS(totalRev), "", C.success],
           ["Blended ROAS", (totalSpend ? Math.round((totalRev / totalSpend) * 100) / 100 : 0) + "x", "", C.teal],
-          ["Active Campaigns", data.campaigns.filter((c: any) => c.status === "Active").length, "", C.accent],
+          ["Active Campaigns", campaigns.filter((c: any) => c.status === "Active").length, "", C.accent],
         ].map(([l, v, _s, c]) => (
           <div key={String(l)} style={S.statCard(String(c))}>
             <div style={{ fontSize: ".7rem", color: "#888" }}>{l as any}</div>
@@ -81,6 +169,7 @@ export function MarketingAttribution({ data, onAdd }: any) {
               + Campaign
             </button>
           </div>
+          {err && <div style={{ padding: "10px 14px", color: C.danger, fontWeight: 700, fontSize: ".85rem" }}>{err}</div>}
           <div style={{ padding: "10px 14px" }}>
             {campStats.map((c: any) => (
               <div

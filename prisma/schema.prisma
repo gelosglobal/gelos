@@ -170,6 +170,26 @@ model DtcInventoryItem {
   @@index([orgId, storeId])
 }
 
+model Campaign {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  orgId String @db.ObjectId
+
+  externalId String? // e.g. CAM-xxxx
+  name       String
+  channel    String
+  spend      Float     @default(0)
+  status     String    @default("Active") // Active | Paused | Ended
+  startDate  DateTime
+  endDate    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, channel])
+  @@index([orgId, status])
+  @@index([orgId, startDate])
+}
+
 model CheckoutEvent {
   id      String  @id @default(auto()) @map("_id") @db.ObjectId
   orgId   String  @db.ObjectId

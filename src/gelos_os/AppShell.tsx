@@ -113,7 +113,7 @@ export default function AppShell() {
     if (page === "dtc-customers") return <CustomerIntelligence />;
     if (page === "dtc-inventory") return <DTCInventory />;
     if (page === "dtc-products") return <ProductPerformance {...props} />;
-    if (page === "dtc-marketing") return <MarketingAttribution {...props} />;
+    if (page === "dtc-marketing") return <MarketingAttribution />;
     if (page === "dtc-finance") return <FinanceLayer {...props} />;
     if (page === "sf-dashboard") return <SFDashboard {...props} view={sfView} rep={sfRep} />;
     if (page === "sf-scouting") return <OutletScouting {...props} view={sfView} rep={sfRep} />;
