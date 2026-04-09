@@ -4,7 +4,7 @@ import { C, REPS } from "./constants";
 import { loadD, saveD } from "./lib";
 import { SEED } from "./seed";
 import { S } from "./styles";
-import { MasterDashboard } from "./pages/master";
+import { MasterDashboardLive } from "./pages/master";
 import {
   CustomerIntelligence,
   DTCInventory,
@@ -108,9 +108,9 @@ export default function AppShell() {
   const props = { data, onAdd, onDelete, onUpdate };
 
   const renderPage = () => {
-    if (page === "master") return <MasterDashboard {...props} />;
-    if (page === "dtc-orders") return <OrdersEngine {...props} />;
-    if (page === "dtc-customers") return <CustomerIntelligence {...props} />;
+    if (page === "master") return <MasterDashboardLive />;
+    if (page === "dtc-orders") return <OrdersEngine />;
+    if (page === "dtc-customers") return <CustomerIntelligence />;
     if (page === "dtc-inventory") return <DTCInventory {...props} />;
     if (page === "dtc-products") return <ProductPerformance {...props} />;
     if (page === "dtc-marketing") return <MarketingAttribution {...props} />;

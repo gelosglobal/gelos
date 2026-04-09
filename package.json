@@ -10,21 +10,26 @@
     "dev": "node scripts/build-client.mjs && concurrently -k -n client,srv -c yellow,cyan \"node scripts/build-client.mjs --watch\" \"tsx watch server/index.ts\"",
     "dev:auth": "tsx watch server/index.ts",
     "build": "tsc -b && NODE_ENV=production node scripts/build-client.mjs",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:studio": "prisma studio",
     "preview": "pnpm run build && tsx server/index.ts",
     "start": "tsx server/index.ts",
     "start:auth": "tsx server/index.ts"
   },
   "dependencies": {
     "@better-auth/mongo-adapter": "^1.6.0",
+    "@prisma/client": "^6.16.0",
+    "@vercel/node": "^5.7.1",
     "better-auth": "^1.6.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
     "express": "^4.22.1",
     "mongodb": "^7.1.1",
+    "prisma": "^6.16.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "tsx": "^4.21.0",
-    "@vercel/node": "^5.7.1"
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

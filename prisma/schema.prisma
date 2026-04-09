@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum LiveEventKind {
+  ORDER_CREATED
+  ORDER_PAID
+  ORDER_REFUNDED
+  ORDER_CANCELLED
+  CHECKOUT_STARTED
+  USER_LOGIN
+  ALERT
+  INTEGRATION_ERROR
+}
+
+enum OrderStatus {
+  Pending
+  Processing
+  Shipped
+  Delivered
+  Failed
+  Refunded
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  name      String?
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+}
+
+model Organization {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members Membership[]
+  stores  Store[]
+}
+
+model Membership {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  orgId     String   @db.ObjectId
+  userId    String   @db.ObjectId
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id])
+  user User         @relation(fields: [userId], references: [id])
+
+  @@unique([orgId, userId])
+  @@index([orgId, role])
+  @@index([userId])
+}
+
+model Store {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  orgId String @db.ObjectId
+
+  name     String
+  platform String
+  timezone String?
+  currency String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
+}
+
+model Order {
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  orgId   String  @db.ObjectId
+  storeId String? @db.ObjectId
+
+  externalId String?
+  status     OrderStatus @default(Pending)
+
+  customerId   String? @db.ObjectId
+  customerName String
+  email        String?
+  country      String?
+
+  items         Json
+  paymentMethod String
+  source        String
+  orderDate     DateTime
+  notes         String?
+
+  subtotal Float?
+  tax      Float?
+  shipping Float?
+  discount Float?
+  total    Float
+  currency String?
+
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+  updatedAt DateTime  @updatedAt
+
+  @@unique([orgId, externalId])
+  @@index([orgId, createdAt])
+  @@index([orgId, paidAt])
+  @@index([orgId, status, createdAt])
+  @@index([orgId, storeId, createdAt])
+  @@index([orgId, orderDate])
+}
+
+model Customer {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  orgId String @db.ObjectId
+
+  name     String
+  phone    String?
+  email    String?
+  location String?
+  source   String?
+  segment  String   @default("New")
+  joinDate DateTime
+  notes    String?
+
+  totalOrders  Int       @default(0)
+  ltv          Float     @default(0)
+  lastPurchase DateTime?
+  favSku       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId])
+  @@index([orgId, segment])
+  @@index([orgId, name])
+  @@index([orgId, phone])
+}
+
+model CheckoutEvent {
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  orgId   String  @db.ObjectId
+  storeId String? @db.ObjectId
+
+  sessionId String
+  email     String?
+  country   String?
+
+  ts   DateTime @default(now())
+  step String?
+
+  @@index([orgId, ts])
+  @@index([orgId, sessionId])
+}
+
+model LiveEvent {
+  id      String        @id @default(auto()) @map("_id") @db.ObjectId
+  orgId   String        @db.ObjectId
+  storeId String?       @db.ObjectId
+  kind    LiveEventKind
+  ts      DateTime      @default(now())
+
+  title   String?
+  message String?
+  data    Json?
+
+  orderId String? @db.ObjectId
+
+  @@index([orgId, ts])
+  @@index([orgId, kind, ts])
+}
+
+model KpiRollupMinute {
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  orgId   String  @db.ObjectId
+  storeId String? @db.ObjectId
+
+  bucketTs DateTime
+  currency String?
+
+  orders  Int   @default(0)
+  revenue Float @default(0)
+  refunds Float @default(0)
+
+  checkoutsStarted Int @default(0)
+  activeCheckouts  Int @default(0)
+
+  country String?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, storeId, bucketTs, country])
+  @@index([orgId, bucketTs])
+  @@index([orgId, storeId, bucketTs])
+  @@index([orgId, country, bucketTs])
+}
+
+model Alert {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  orgId String @db.ObjectId
+
+  ts         DateTime  @default(now())
+  severity   String
+  title      String
+  message    String?
+  data       Json?
+  resolvedAt DateTime?
+
+  @@index([orgId, ts])
+  @@index([orgId, severity, ts])
+  @@index([orgId, resolvedAt])
+}

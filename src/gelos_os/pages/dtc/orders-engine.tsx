@@ -1,30 +1,48 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { C, MKT_CHANNELS, ORDER_STATUSES, PAY_METHODS, PRODUCTS, SKUS } from "../../constants";
 import { fmtGHS, getProd, today, uid } from "../../lib";
 import { S } from "../../styles";
 import { AIBox, Badge, Field, Modal, SearchBar } from "../../ui";
 
-export function OrdersEngine({ data, onAdd, onDelete, onUpdate }: any) {
+type ApiOrder = {
+  id: string;
+  externalId: string | null;
+  customerName: string;
+  items: any[];
+  total: number;
+  currency: string | null;
+  paymentMethod: string;
+  source: string;
+  status: string;
+  orderDate: string;
+  notes: string | null;
+};
+
+export function OrdersEngine() {
   const [modal, setModal] = useState(false);
   const [search, setSearch] = useState("");
   const [stF, setStF] = useState("");
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState<any>({
-    id: "ORD-" + Date.now().toString().slice(-5),
-    customerId: "",
     customerName: "",
     items: [{ sku: SKUS[0], qty: 1 }],
     paymentMethod: "Mobile Money",
     status: "Pending",
     source: MKT_CHANNELS[0],
-    campaignId: "",
-    date: today(),
+    orderDate: today(),
     notes: "",
   });
 
-  const rows = data.orders.filter((o: any) => {
-    const q = search.toLowerCase();
-    return (!q || (o.id + o.customerName).toLowerCase().includes(q)) && (!stF || o.status === stF);
-  });
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return orders.filter((o) => {
+      const hay = `${o.externalId ?? ""} ${o.customerName}`.toLowerCase();
+      return (!q || hay.includes(q)) && (!stF || o.status === stF);
+    });
+  }, [orders, search, stF]);
 
   const upd = (e: any) => setForm((f: any) => ({ ...f, [e.target.name]: e.target.value }));
   const updItem = (idx: number, field: string, val: any) =>
@@ -37,27 +55,140 @@ export function OrdersEngine({ data, onAdd, onDelete, onUpdate }: any) {
   const removeItem = (idx: number) => setForm((f: any) => ({ ...f, items: f.items.filter((_: any, i: number) => i !== idx) }));
   const calcVal = () => form.items.reduce((s: number, i: any) => s + getProd(i.sku).price * i.qty, 0);
 
-  const save = () => {
+  const load = async (oid?: string | null) => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const qs = new URLSearchParams();
+      if (oid) qs.set("orgId", oid);
+      if (search.trim()) qs.set("q", search.trim());
+      if (stF) qs.set("status", stF);
+      qs.set("limit", "200");
+      const r = await fetch(`/api/orders?${qs.toString()}`, { credentials: "include" });
+      const d = await r.json();
+      setOrgId(d.orgId ?? oid ?? null);
+      setOrders(
+        (d.orders ?? []).map((o: any) => ({
+          id: o.id,
+          externalId: o.externalId ?? null,
+          customerName: o.customerName,
+          items: o.items ?? [],
+          total: Number(o.total ?? 0),
+          currency: o.currency ?? null,
+          paymentMethod: o.paymentMethod ?? "",
+          source: o.source ?? "",
+          status: o.status ?? "Pending",
+          orderDate: (o.orderDate ?? o.createdAt) as string,
+          notes: o.notes ?? null,
+        })),
+      );
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to load orders");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/master/snapshot", { credentials: "include" });
+        const d = await r.json();
+        const oid = d?.orgId ?? null;
+        setOrgId(oid);
+        await load(oid);
+      } catch {
+        await load(null);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      load(orgId);
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, stF]);
+
+  const save = async () => {
     if (!form.customerName.trim()) return alert("Customer name required");
     const val = calcVal();
-    onAdd("orders", { ...form, value: val });
-    const cust = data.customers.find((c: any) => c.id === form.customerId);
-    if (cust) onUpdate("customers", { ...cust, totalOrders: cust.totalOrders + 1, ltv: cust.ltv + val, lastPurchase: form.date });
-    form.items.forEach((item: any) => {
-      const inv = data.dtcInventory.find((i: any) => i.sku === item.sku);
-      if (inv) onUpdate("dtcInventory", { ...inv, stock: Math.max(0, inv.stock - item.qty) });
-    });
-    setModal(false);
+    setLoading(true);
+    setErr(null);
+    try {
+      const payload = {
+        externalId: "ORD-" + uid(),
+        customerName: form.customerName,
+        items: form.items,
+        paymentMethod: form.paymentMethod,
+        source: form.source,
+        status: form.status,
+        orderDate: form.orderDate,
+        notes: form.notes,
+        total: val,
+      };
+      const qs = new URLSearchParams();
+      if (orgId) qs.set("orgId", orgId);
+      const r = await fetch(`/api/orders?${qs.toString()}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error ?? "Failed to create order");
+      setOrders((o) => [d.order, ...o] as any);
+      setModal(false);
+      setForm((f: any) => ({ ...f, customerName: "", items: [{ sku: SKUS[0], qty: 1 }], notes: "", orderDate: today(), status: "Pending" }));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to create order");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setStatus = async (id: string, status: string) => {
+    setOrders((os) => os.map((o) => (o.id === id ? { ...o, status } : o)));
+    try {
+      const r = await fetch(`/api/orders/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error ?? "Failed to update order");
+      setOrders((os) => os.map((o) => (o.id === id ? { ...o, ...d.order } : o)) as any);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to update order");
+      load(orgId);
+    }
+  };
+
+  const del = async (id: string) => {
+    if (!window.confirm("Delete?")) return;
+    const prev = orders;
+    setOrders((os) => os.filter((o) => o.id !== id));
+    try {
+      const r = await fetch(`/api/orders/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "include" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error ?? "Failed to delete order");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to delete order");
+      setOrders(prev);
+    }
   };
 
   return (
     <div>
       <div style={S.statGrid}>
         {[
-          ["Total", data.orders.length, "", C.primary],
-          ["Delivered", data.orders.filter((o: any) => o.status === "Delivered").length, "", C.success],
-          ["In Progress", data.orders.filter((o: any) => ["Pending", "Processing", "Shipped"].includes(o.status)).length, "", C.warn],
-          ["Failed", data.orders.filter((o: any) => o.status === "Failed").length, "", C.danger],
+          ["Total", orders.length, "", C.primary],
+          ["Delivered", orders.filter((o) => o.status === "Delivered").length, "", C.success],
+          ["In Progress", orders.filter((o) => ["Pending", "Processing", "Shipped"].includes(o.status)).length, "", C.warn],
+          ["Failed", orders.filter((o) => o.status === "Failed").length, "", C.danger],
         ].map(([l, v, _s, c]) => (
           <div key={String(l)} style={S.statCard(String(c))}>
             <div style={{ fontSize: ".7rem", color: "#888" }}>{l as any}</div>
@@ -72,6 +203,7 @@ export function OrdersEngine({ data, onAdd, onDelete, onUpdate }: any) {
             + New Order
           </button>
         </div>
+        {err && <div style={{ padding: "10px 16px", color: C.danger, fontWeight: 700, fontSize: ".85rem" }}>{err}</div>}
         <SearchBar value={search} onChange={setSearch}>
           <select value={stF} onChange={(e) => setStF(e.target.value)} style={S.select}>
             <option value="">All</option>
@@ -92,7 +224,13 @@ export function OrdersEngine({ data, onAdd, onDelete, onUpdate }: any) {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
+              {loading && rows.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ ...S.td, textAlign: "center", color: "#aaa" }}>
+                    Loading…
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ ...S.td, textAlign: "center", color: "#aaa" }}>
                     No orders
@@ -101,15 +239,14 @@ export function OrdersEngine({ data, onAdd, onDelete, onUpdate }: any) {
               ) : (
                 rows
                   .slice()
-                  .reverse()
                   .map((o: any) => (
                     <tr key={o.id}>
-                      <td style={{ ...S.td, fontWeight: 700, color: C.primary, fontSize: ".73rem" }}>{o.id}</td>
+                      <td style={{ ...S.td, fontWeight: 700, color: C.primary, fontSize: ".73rem" }}>{o.externalId ?? o.id}</td>
                       <td style={S.td}>{o.customerName}</td>
                       <td style={{ ...S.td, fontSize: ".74rem" }}>
                         {o.items.map((i: any) => `${getProd(i.sku).name.split(" ").slice(1, 3).join(" ")} x${i.qty}`).join(", ")}
                       </td>
-                      <td style={{ ...S.td, fontWeight: 700, color: C.success }}>{fmtGHS(o.value)}</td>
+                      <td style={{ ...S.td, fontWeight: 700, color: C.success }}>{fmtGHS(o.total)}</td>
                       <td style={S.td}>
                         <Badge s={o.paymentMethod} />
                       </td>
@@ -117,7 +254,7 @@ export function OrdersEngine({ data, onAdd, onDelete, onUpdate }: any) {
                       <td style={S.td}>
                         <select
                           value={o.status}
-                          onChange={(e) => onUpdate("orders", { ...o, status: e.target.value })}
+                          onChange={(e) => setStatus(o.id, e.target.value)}
                           style={{ ...S.select, padding: "3px 6px", fontSize: ".73rem" }}
                         >
                           {ORDER_STATUSES.map((s) => (
@@ -125,9 +262,9 @@ export function OrdersEngine({ data, onAdd, onDelete, onUpdate }: any) {
                           ))}
                         </select>
                       </td>
-                      <td style={S.td}>{o.date}</td>
+                      <td style={S.td}>{String(o.orderDate).slice(0, 10)}</td>
                       <td style={S.td}>
-                        <button onClick={() => onDelete("orders", o.id)} style={S.btnSm(C.danger)}>
+                        <button onClick={() => del(o.id)} style={S.btnSm(C.danger)}>
                           ✕
                         </button>
                       </td>
@@ -138,34 +275,15 @@ export function OrdersEngine({ data, onAdd, onDelete, onUpdate }: any) {
           </table>
         </div>
       </div>
-      <AIBox context={{ orders: data.orders }} placeholder="e.g. What's our COD failure rate? Which orders need urgent follow-up?" color={C.primary} />
+      <AIBox context={{ orders }} placeholder="e.g. What's our COD failure rate? Which orders need urgent follow-up?" color={C.primary} />
       {modal && (
         <Modal title="Create Order" onClose={() => setModal(false)} onSave={save} wide color={C.primary}>
           <div style={S.formGrid}>
-            <Field label="Order ID" name="id" value={form.id} onChange={upd} readOnly />
-            <Field label="Date" name="date" value={form.date} onChange={upd} type="date" />
-            <Field label="Customer Name" name="customerName" value={form.customerName} onChange={upd} full placeholder="Type or link below" />
-            <div style={S.fg(false)}>
-              <label style={S.label}>Link Existing Customer</label>
-              <select
-                onChange={(e) => {
-                  const c = data.customers.find((x: any) => x.id === e.target.value);
-                  if (c) setForm((f: any) => ({ ...f, customerId: c.id, customerName: c.name }));
-                }}
-                style={S.select}
-              >
-                <option value="">-- select --</option>
-                {data.customers.map((c: any) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} · {c.phone}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Field label="Date" name="orderDate" value={form.orderDate} onChange={upd} type="date" />
+            <Field label="Customer Name" name="customerName" value={form.customerName} onChange={upd} full placeholder="Type customer name" />
             <Field label="Payment Method" name="paymentMethod" value={form.paymentMethod} onChange={upd} options={PAY_METHODS} />
             <Field label="Source" name="source" value={form.source} onChange={upd} options={MKT_CHANNELS} />
             <Field label="Status" name="status" value={form.status} onChange={upd} options={ORDER_STATUSES} />
-            <Field label="Campaign" name="campaignId" value={form.campaignId} onChange={upd} options={[""].concat(data.campaigns.map((c: any) => c.id))} />
           </div>
           <div style={{ marginTop: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
