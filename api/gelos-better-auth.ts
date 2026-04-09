@@ -21,7 +21,11 @@ function mongoUri(): string {
   if (!u) {
     throw new Error("Set MONGODB_URI or DATABASE_URL in the environment (MongoDB connection string).");
   }
-  return u;
+  const trimmed = u.trim();
+  if (!trimmed.startsWith("mongodb://") && !trimmed.startsWith("mongodb+srv://")) {
+    throw new Error("Invalid MongoDB connection string (must start with mongodb:// or mongodb+srv://)");
+  }
+  return trimmed;
 }
 
 const dbName = process.env.MONGODB_DB_NAME || "gelos";
