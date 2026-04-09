@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "node scripts/build-client.mjs && concurrently -k -n client,srv -c yellow,cyan \"node scripts/build-client.mjs --watch\" \"tsx watch server/index.ts\"",
     "dev:auth": "tsx watch server/index.ts",
-    "build": "tsc -b && NODE_ENV=production node scripts/build-client.mjs",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && tsc -b && NODE_ENV=production node scripts/build-client.mjs",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
