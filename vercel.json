@@ -6,12 +6,7 @@
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 30,
-      "includeFiles": [
-        "node_modules/.prisma/**",
-        "node_modules/@prisma/**",
-        "node_modules/.pnpm/**/.prisma/**",
-        "node_modules/.pnpm/**/@prisma/**"
-      ]
+      "includeFiles": "node_modules/.prisma/**"
     }
   },
   "rewrites": [
