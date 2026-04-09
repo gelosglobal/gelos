@@ -4,6 +4,10 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 30,
+      "includeFiles": "node_modules/.prisma/**"
+    },
     "api/gelos-better-auth.ts": {
       "maxDuration": 30
     },
